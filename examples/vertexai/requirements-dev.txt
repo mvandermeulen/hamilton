@@ -1,0 +1,9 @@
+google-cloud-aiplatform
+google-cloud-bigquery
+google-cloud-pipeline-components<2
+kfp<2
+numpy
+pandas
+pyarrow
+scikit-learn
+sf-hamilton[visualization]
