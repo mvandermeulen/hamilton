@@ -7,14 +7,14 @@ Run with mprof:
 See https://github.com/DAGWorks-Inc/hamilton/pull/374 for more details.
 """
 
-from hamilton import driver
-from hamilton.ad_hoc_utils import create_temporary_module
 from hamilton.function_modifiers import parameterize, source
 
-NUM_ITERS = 100
+NUM_ITERS = 1000
 
 import numpy as np
 import pandas as pd
+
+count = 0
 
 
 def foo_0(memory_size: int = 100_000_000) -> pd.DataFrame:
@@ -45,9 +45,6 @@ def foo_0(memory_size: int = 100_000_000) -> pd.DataFrame:
     return df
 
 
-count = 0
-
-
 @parameterize(
     **{f"foo_{i}": {"foo_i_minus_one": source(f"foo_{i-1}")} for i in range(1, NUM_ITERS)}
 )
@@ -59,6 +56,23 @@ def foo_i(foo_i_minus_one: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    mod = create_temporary_module(foo_i, foo_0)
-    dr = driver.Builder().with_modules(mod).build()
-    output = dr.execute([f"foo_{NUM_ITERS-1}"], inputs=dict(memory_size=1_000_000_000))
+
+    import os
+
+    import psutil
+
+    def get_memory_usage():
+        process = psutil.Process(os.getpid())
+        return process.memory_info().rss / (1024 * 1024)  # Return in MB
+
+    if __name__ == "__main__":
+        print(f"Memory usage: {get_memory_usage()} MB")
+    import gc
+
+    gc.set_debug(gc.DEBUG_STATS)
+    gc.disable()
+    from hamilton import ad_hoc_utils, driver
+
+    dr = driver.Driver({}, ad_hoc_utils.create_temporary_module(foo_0, foo_i))
+    dr.execute([f"foo_{NUM_ITERS - 1}"], inputs={"memory_size": 1_000_000_000})
+    # Your Python code here
